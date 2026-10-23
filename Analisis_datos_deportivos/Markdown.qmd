@@ -1,0 +1,774 @@
+---
+title: "Análisis exploratorio de la Euroliga y Eurocup"
+author: "David Fernández Horcajada, Juan José Muñoz Espinoza, Pablo Uriarte Garrido"
+date: today
+format:
+  html:
+    toc: true
+  docx: default
+execute:
+  echo: true
+  warning: true
+  message: true
+---
+
+::: {.callout-note}
+
+
+:::
+## Descripción de los datasets y variables
+
+### 1. `euroleague_box_score.csv`
+Contiene estadísticas sobre un jugador o sobre un equipo en un partido específico.  
+**Dimensiones del dataset:** 129168 x 32
+
+
+<!--atajo teclado control+alt+I
+```{r}
+#| include: false
+library(tidyverse)
+library(knitr)
+
+df_euroliga <- read.csv("datos_con_pos_fin.csv", sep = ";")
+head(df_euroliga)
+```
+
+
+```{r}
+#| label: tabla-box-score
+#| echo: false
+
+box_score_vars <- tibble(
+  Nombre = c("game_player_id", "game_id", "game", "round", "phase", "season_code", "player_id", "is_starter", "is_playing", "team_id", "dorsal", "player", "minutes", "points", "two_points_made", "two_points_attempted", "three_points_made", "three_points_attempted", "free_throws_made", "free_throws_attempted", "offensive_rebounds", "defensive_rebounds", "total_rebounds", "assists", "steals", "turnovers", "blocks_favour", "blocks_against", "fouls_commited", "fouls_received", "valuation", "plus_minus"),
+  Tipo = c("Categórica nominal", "Categórica nominal", "Categórica nominal", "Numérica discreta", "Categórica ordinal", "Categórica nominal", "Categórica nominal", "Binaria", "Binaria", "Categórica nominal", "Categórica nominal", "Categórica nominal", "Categórica nominal", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta"),
+  Descripción = c(
+    "Identificador único del partido y jugador con la temporada",
+    "Identificador único del partido con la temporada",
+    "Identificador del partido con los nombres de los equipos",
+    "Jornada en la que se jugó el partido",
+    "Fase en la que se jugó el partido",
+    "Identificador de la temporada donde se jugó el partido",
+    "Identificador único del jugador",
+    "Indica si el jugador estuvo en el quinteto inicial",
+    "Indica si el jugador jugó en el partido",
+    "Indicador único del equipo",
+    "Indica el dorsal del jugador o el equipo entero",
+    "Nombre del jugador (o equipo si dorsal=TOTAL)",
+    "Minutos jugados por el jugador",
+    "Puntos anotados por el jugador (o equipo si dorsal=TOTAL)",
+    "Número de tiros de dos puntos anotados",
+    "Número de tiros de dos puntos lanzados",
+    "Número de triples anotados",
+    "Número de triples lanzados",
+    "Número de tiros libres anotados",
+    "Número de tiros libres lanzados",
+    "Número de rebotes ofensivos ganados",
+    "Número de rebotes defensivos ganados",
+    "Número de rebotes ganados",
+    "Número de asistencias dadas",
+    "Número de robos de balón",
+    "Número de pérdidas de balón",
+    "Número de tapones hechos",
+    "Número de tapones recibidos",
+    "Número de faltas cometidas",
+    "Número de faltas recibidas",
+    "Valoración del jugador o equipo",
+    "Puntaje más menos con el jugador en cancha"
+  ),
+  `Unidades de medida` = rep("No aplica", 32),
+  `Rango o valores` = c("E{año}{partido}_{jugador}", "E{año}_{partido}", "Ej: ZAL-OLY", "1 a 47", "REGULAR SEASON, TOP 16...", "DE E2007 a E2025", "Ej: PBDE", "{0,1}", "{0,1}", "EJ: MAD", "-TOTAL, 0 a 99", "Ej: JURAK, GORAN", "-DNP, Ej: 8:08", "0 a 134", "0 a 38", "0 a 66", "0 a 24", "0 a 52", "0 a 42", "0 a 49", "0 a 30", "0 a 43", "0 a 62", "0 a 38", "0 a 29", "0 a 31", "0 a 12", "0 a 12", "0 a 38", "0 a 36", "-14 a 163", "-47 a 48")
+)
+
+kable(box_score_vars, caption = "Variables de euroleague_box_score.csv")
+```
+
+### 2. `euroleague_comparison.csv`
+Dataset con estadísticas por equipo de distintos partidos de la Euroliga desde la temporada 2007/2008 hasta la temporada 2025/2026.  
+**Dimensiones del dataset:** 5039 x 49
+```{r}
+#| label: tabla-comparison
+#| echo: false
+
+comparison_vars <- tibble(
+  Nombre = c(
+    "game_id", "game", "round", "phase", "season_code", 
+    "team_id_a", "team_id_b", 
+    "fast_break_points_a", "fast_break_points_b", 
+    "turnover_points_a", "turnover_points_b", 
+    "second_chance_points_a", "second_chance_points_b", 
+    "defensive_rebounds_a", "offensive_rebounds_b", 
+    "offensive_rebounds_a", "defensive_rebounds_b", 
+    "turnovers_starters_a", "turnovers_bench_a", 
+    "turnovers_starters_b", "turnovers_bench_b", 
+    "steals_starters_a", "steals_bench_a", 
+    "steals_starters_b", "steals_bench_b", 
+    "assists_starters_a", "assists_bench_a", 
+    "assists_starters_b", "assists_bench_b", 
+    "points_starters_a", "points_bench_a", 
+    "points_starters_b", "points_bench_b", 
+    "max_a", "minute_prev_a", "prev_a", 
+    "minute_str_a", "str_a", 
+    "max_b", "minute_prev_b", "prev_b", 
+    "minute_str_b", "str_b", 
+    "max_lead_a", "max_lead_b", 
+    "minute_max_lead_a", "minute_max_lead_b", 
+    "points_max_lead_a", "points_max_lead_b"
+  ),
+  Tipo = c(
+    "Categórica nominal", "Categórica nominal", "Numérica discreta", "Categórica ordinal", "Categórica nominal", 
+    "Categórica nominal", "Categórica nominal", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", "Categórica nominal", 
+    "Numérica discreta", "Categórica nominal", 
+    "Numérica discreta", "Numérica discreta", "Categórica nominal", 
+    "Numérica discreta", "Categórica nominal", 
+    "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", 
+    "Categórica nominal", "Categórica nominal"
+  ),
+  Descripción = c(
+    "Identificador único del partido con la temporada",
+    "Identificador del partido con los nombres de los equipos",
+    "Jornada en la que se jugó el partido",
+    "Fase en la que se jugó el partido",
+    "Identificador de la temporada donde se jugó el partido",
+    "Identificador único del equipo local",
+    "Identificador único del equipo visitante",
+    "Número de puntos al contraataque del equipo local(solo disponible desde season_code=E2015) en el partido",
+    "Número de puntos al contraataque del equipo visitante(solo disponible desde season_code=E2015) en el partido",
+    "Número de puntos del equipo local tras pérdida del equipo visitante (solo disponible desde season_code=E2015) en el partido",
+    "Número de puntos del equipo visitante tras pérdida del equipo local (solo disponible desde season_code=E2015) en el partido",
+    "Número de puntos del equipo local tras coger un rebote ofensivo (solo disponible desde season_code=E2015) en el partido",
+    "Número de puntos del equipo visitante tras coger un rebote ofensivo (solo disponible desde season_code=E2015) en el partido",
+    "Número de rebotes defensivos capturados por el equipo local en el partido",
+    "Número de rebotes ofensivos capturados por el equipo visitante en el partido",
+    "Número de rebotes ofensivos capturados por el equipo local en el partido",
+    "Número de rebotes defensivos capturados por el equipo visitante en el partido",
+    "Número de pérdidas en el partido de los jugadores del quinteto inicial del equipo local",
+    "Número de pérdidas en el partido de los jugadores suplentes del equipo local",
+    "Número de pérdidas en el partido de los jugadores del quinteto inicial del equipo visitante",
+    "Número de pérdidas en el partido de los jugadores suplentes del equipo visitante",
+    "Número de robos de balón en el partido de los jugadores del quinteto inicial del equipo local",
+    "Número de robos de balón en el partido de los jugadores suplentes del equipo local",
+    "Número de robos de balón en el partido de los jugadores del quinteto inicial del equipo visitante",
+    "Número de robos de balón en el partido de los jugadores suplentes del equipo visitante",
+    "Número de asistencias en el partido de los jugadores del quinteto inicial del equipo local",
+    "Número de asistencias en el partido de los jugadores suplentes del equipo local",
+    "Número de asistencias en el partido de los jugadores del quinteto inicial del equipo visitante",
+    "Número de asistencias en el partido de los jugadores suplentes del equipo visitante",
+    "Número de puntos en el partido de los jugadores del quinteto inicial del equipo local",
+    "Número de puntos en el partido de los jugadores suplentes del equipo local",
+    "Número de puntos en el partido de los jugadores del quinteto inicial del equipo visitante",
+    "Número de puntos en el partido de los jugadores suplentes del equipo visitante",
+    "Número de puntos máximos seguidos del equipo local sin que anote el equipo visitante",
+    "Minuto en el que empezó la racha de puntos seguidos de max_a",
+    "Marcador del partido cuando comenzó la racha de max_a",
+    "Minuto en el que terminó la racha de puntos seguidos de max_a",
+    "Marcador del partido cuando terminó la racha de max_a",
+    "Número de puntos máximos seguidos del equipo visitante sin que anote el equipo local",
+    "Minuto en el que empezó la racha de puntos seguidos de max_b",
+    "Marcador del partido cuando comenzó la racha de max_b",
+    "Minuto en el que terminó la racha de puntos seguidos de max_b",
+    "Marcador del partido cuando terminó la racha de max_b",
+    "Ventaja máxima del equipo local en el partido",
+    "Ventaja máxima del equipo visitante en el partido",
+    "Minuto del partido en el que se dió max_lead_a",
+    "Minuto del partido en el que se dió max_lead_b",
+    "Marcador del partido cuando sucedió max_lead_a (o [null] si max_lead_a=0)",
+    "Marcador del partido cuando sucedió max_lead_b (o [null] si max_lead_b=0)"
+  ),
+  `Unidades de medida` = c(
+    "No aplica", "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica"
+  ),
+  `Rango o valores` = c(
+    "E{año_de_inicio}_{número de partido}", "Ej: OLY-BAS", "[1,47]", 
+    "-REGULAR SEASON<br>-TOP 16<br>-PLAYOFFS<br>-PLAY OFF<br>-PLAY-IN<br>-FINAL FOUR", 
+    "DE E2007 a E2025", "Ej: OLY", "Ej: BAS", 
+    "De forma discreta de 0 a 32", "De forma discreta de 0 a 33", 
+    "De forma discreta de 0 a 44", "De forma discreta de 0 a 36", 
+    "De forma discreta de 0 a 35", "De forma discreta de 0 a 31", 
+    "De forma discreta de 0 a 41", "De forma discreta de 0 a 30", 
+    "De forma discreta de 0 a 26", "De forma discreta de 0 a 43", 
+    "De forma discreta de 0 a 19", "De forma discreta de 0 a 17", 
+    "De forma discreta de 0 a 23", "De forma discreta de 0 a 15", 
+    "De forma discreta de 0 a 22", "De forma discreta de 0 a 20", 
+    "De forma discreta de 0 a 17", "De forma discreta de 0 a 14", 
+    "De forma discreta de 0 a 26", "De forma discreta de 0 a 22", 
+    "De forma discreta de 0 a 25", "De forma discreta de 0 a 20", 
+    "De forma discreta de 13 a 121", "De forma discreta de 1 a 78", 
+    "De forma discreta de 10 a 90", "De forma discreta de 2 a 78", 
+    "De forma discreta de 4 a 25", "De forma discreta de 1 a 50", "Ej:48-37", 
+    "De forma discreta de 1 a 55", "Ej:58-37", 
+    "De forma discreta de 4 a 25", "De forma discreta de 1 a 43", "Ej:60-42", 
+    "De forma discreta de 1 a 45", "Ej:60-52", 
+    "De forma discreta de 0 a 56", "De forma discreta de 0 a 51", 
+    "De forma discreta de 0 a 55", "De forma discreta de 0 a 49", 
+    "Ej: 58-37<br>[null]", "Ej:0-2<br>[null]"
+  )
+)
+
+kable(comparison_vars, caption = "Variables de euroleague_comparison.csv")
+```
+
+### 3. `euroleague_header.csv`
+Incluye información de los partidos de Euroliga desde la temporada 2007/2008 hasta la 2025/2026.  
+**Dimensiones del dataset:** 5039 x 43
+
+```{r}
+#| label: tabla-header
+#| echo: false
+
+header_vars <- tibble(
+  Nombre = c(
+    "game_id", "game", "date", "time", "round", "phase", "season_code", 
+    "score_a", "score_b", "team_a", "team_a", "team_id_a", "team_id_b", 
+    "coach_a", "coach_b", "game_time", "remaining_parcial_time", 
+    "referee_1", "referee_2", "referee_3", "stadium", "capacity", "w_id", 
+    "fouls_a", "fouls_b", "timeouts_a", "timeouts_b", 
+    "score_quarter_1_a", "score_quarter_2_a", "score_quarter_3_a", "score_quarter_4_a", 
+    "score_quarter_1_b", "score_quarter_2_b", "score_quarter_3_b", "score_quarter_4_b", 
+    "score_extra_time_1_a", "score_extra_time_2_a", "score_extra_time_3_a", "score_extra_time_4_a", 
+    "score_extra_time_1_b", "score_extra_time_2_b", "score_extra_time_3_b", "score_extra_time_4_b"
+  ),
+  Tipo = c(
+    "Categórica nominal", "Categórica nominal", "fecha", "Hora", "Numérica discreta", 
+    "Categórica ordinal", "Categórica nominal", "Numérica discreta", "Numérica discreta", 
+    "Categórica nominal", "Categórica nominal", "Categórica nominal", "Categórica nominal", 
+    "Categórica nominal", "Categórica nominal", "Categórica nominal", "Categórica nominal", 
+    "Categórica nominal", "Categórica nominal", "Categórica nominal", "Categórica nominal", 
+    "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta"
+  ),
+  Descripción = c(
+    "Identificador único del partido con la temporada",
+    "Identificador del partido con los nombres de los equipos",
+    "Fecha en la que se disputó el partido",
+    "Hora a la que se jugó el partido",
+    "Jornada en la que se jugó el partido",
+    "Fase en la que se jugó el partido",
+    "Identificador de la temporada donde se jugó el partido",
+    "Puntuación total del equipo local",
+    "Puntuación total del equipo visitante",
+    "Nombre del equipo local",
+    "Nombre del equipo visitante",
+    "Identificador único del equipo local",
+    "Identificador único del equipo visitante",
+    "Nombre del entrenador del equipo local(Disponible a partir de season_code=E2015 , round=9)",
+    "Nombre del entrenador del equipo visitante(Disponible a partir de season_code=E2015 , round=9)",
+    "Minutos de juego del partido",
+    "Tiempo restante del partido",
+    "Árbitro número 1 del partido",
+    "Árbitro número 2 del partido",
+    "Árbitro número 3 del partido",
+    "Estadio donde se disputó el partido",
+    "Capacidad del estadio",
+    "Minutos jugados sumados los dos equipos",
+    "Número de faltas cometidas por el equipo local",
+    "Número de faltas cometidas por el equipo visitante",
+    "Número de tiempos muertos pedidos por el equipo local",
+    "Número de tiempos muertos pedidos por el equipo visitante",
+    "Puntuación del equipo local al terminar el primer cuarto",
+    "Puntuación del equipo local al terminar el segundo cuarto",
+    "Puntuación del equipo local al terminar el tercer cuarto",
+    "Puntuación del equipo local al terminar el cuarto cuarto",
+    "Puntuación del equipo visitante al terminar el primer cuarto",
+    "Puntuación del equipo visitante al terminar el segundo cuarto",
+    "Puntuación del equipo visitante al terminar el tercer cuarto",
+    "Puntuación del equipo visitante al terminar el cuarto cuarto",
+    "Puntuación del equipo local al terminar la primera prórroga",
+    "Puntuación del equipo local al terminar  la segunda prórroga",
+    "Puntuación del equipo local al terminar la tercera prórroga",
+    "Puntuación del equipo local al terminar  la cuarta prórroga",
+    "Puntuación del equipo visitante al terminar  la primera prórroga",
+    "Puntuación del equipo visitante al terminar  la segunda prórroga",
+    "Puntuación del equipo visitante al terminar  la tercera prórroga",
+    "Puntuación del equipo visitante al terminar la cuarta prórroga"
+  ),
+  `Unidades de medida` = rep("No aplica", 43),
+  `Rango o valores` = c(
+    "E{año_de_inicio}_{número de partido}", 
+    "Ej: OLY-BAS", 
+    "Ej:2007-10-25", 
+    "Ej: 20:30:00", 
+    "[1,47]", 
+    "-REGULAR SEASON<br>-TOP 16<br>-PLAYOFFS<br>-PLAY OFF<br>-PLAY-IN<br>-FINAL FOUR", 
+    "DE E2007 a E2025", 
+    "De forma discreta de 40 a 134", 
+    "De forma discreta de 37 a 126", 
+    "Ej:OLYMPIACOS PIRAEUS B.C.", 
+    "Ej: BASKONIA", 
+    "Ej: OLY", 
+    "Ej: BAS", 
+    "Ej: LASO, PABLO", 
+    "Ej:MESSINA, ETORE", 
+    "Ej: 40:00:00", 
+    "-00:00:00", 
+    "Ej: PUKL, SASA", 
+    "Ej: JOVCIC, MILIVOJE", 
+    "Ej: PERUGA, CARLOS", 
+    "Ej: PEACE AND FRIENDSHIP STADIUM", 
+    "De forma discreta de 0 a 22567", 
+    "De forma discreta de 76 a 92", 
+    "De forma discreta de 9 a 37", 
+    "De forma discreta de 9 a 38", 
+    "De forma discreta de 0 a 7", 
+    "De forma discreta de 0 a 8", 
+    "De forma discreta de 2 a 41", 
+    "De forma discreta de 17 a 67", 
+    "De forma discreta de 29 a 96", 
+    "De forma discreta de 40 a 125", 
+    "De forma discreta de 3 a 41", 
+    "De forma discreta de 9 a 68", 
+    "De forma discreta de 22 a 94", 
+    "De forma discreta de 37 a 123", 
+    "De forma discreta de 45 a 114", 
+    "De forma discreta de 67 a 122", 
+    "De forma discreta de 111 a 134", 
+    "130", 
+    "De forma discreta de 49 a 112", 
+    "De forma discreta de 74 a 122", 
+    "De forma discreta de 111 a 124", 
+    "126"
+  )
+)
+
+kable(header_vars, caption = "Variables de euroleague_header.csv")
+```
+
+### 4. `euroleague_play_by_play.csv`
+El conjunto de datos seleccionado consiste en un registro exhaustivo tipo Play-by-Play (jugada a jugada) de partidos de Euroliga. Este dataset recopila información de cada evento individual que ocurre durante un partido. Incluye datos del partido (fase, jornada, equipos), datos temporales exactos de la acción (cuarto, minuto y tiempo en el cronómetro), los jugadores involucrados junto con su dorsal, el tipo de jugada que realizan (asistencias, rebotes, tiros de 2 o 3 puntos, robos, etc.) y la evolución del marcador en el momento de dicha acción.  
+**Dimensiones del dataset:** 2603014 x 20
+
+```{r}
+#| label: tabla-play-by-play
+#| echo: false
+
+play_by_play_vars <- tibble(
+  Nombre = c(
+    "game_play_id", "game_id", "game", "round", "phase", "season_code", 
+    "quarter", "type", "number_of_play", "team_id", "player_id", 
+    "play_type", "player", "team", "dorsal", "minute", "maker_time", 
+    "points_a", "points_b", "play_info"
+  ),
+  Tipo = c(
+    "Categórica Nominal", "Categórica nominal", "Categórica nominal", "Numérica discreta", 
+    "Categórica nominal", "Categórica nominal", "Categórica ordinal", "Numérica discreta", 
+    "Numérica discreta", "Categórica nominal", "Categórica nominal", "Categórica nominal", 
+    "Categórica nominal", "Categórica nominal", "-", "Numérica discreta", 
+    "Categórica / Fecha y hora", "Numérica discreta", "Numérica discreta", "Categórica nominal"
+  ),
+  Descripción = c(
+    "Identificador único de cada Jugada o evento dentro de la base de datos",
+    "Identificador único del partido al que pertenece la jugada",
+    "Abreviatura del enfrentamiento entre los dos equipos.",
+    "Jornada o ronda de la competición.",
+    "Fase del torneo en la que se disputa el partido.",
+    "Código identificativo de la temporada deportiva",
+    "Cuarto o periodo del partido en el que ocurre la acción.",
+    "Código numérico asociado al tipo de jugada.",
+    "Número secuencial que indica el orden de la jugada dentro del partido.",
+    "Abreviatura o código de tres letras del equipo.",
+    "Código identificador único del jugador involucrado.",
+    "Código estadístico que resume la acción realizada en la cancha.",
+    "Nombre y apellidos del jugador.",
+    "Nombre oficial completo del equipo",
+    "Número de camiseta que viste el jugador",
+    "Minuto de juego en el que transcurre el evento",
+    "Tiempo exacto mostrado en el cronómetro del partido durante la acción.",
+    "Puntuación acumulada por el equipo local en ese momento",
+    "Puntuación acumulada por el equipo visitante en ese momento.",
+    "Descripción textual detallada del evento"
+  ),
+  `Unidades de medida` = c(
+    "No aplica", "No aplica", "No aplica", "Jornadas", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", "No aplica", 
+    "No aplica", "No aplica", "No aplica", "No aplica", "No aplica", 
+    "Minutos", "Minutos:Segundos.", "Puntos", "Puntos", "No aplica"
+  ),
+  `Rango o valores` = c(
+    "No aplica", 
+    "E{año_de_inicio}_{número de partido}", 
+    "1387 valores", 
+    "Del 1 al 47.", 
+    "Ej: REGULAR SEASON, TOP 16…", 
+    "Del E2007 al E2025", 
+    "Ej: q1, q2, q3, q4, etc..", 
+    "0", 
+    "Del 2 al 1225", 
+    "Ej: MAD, BAR, OLY…", 
+    "Ej: P005985, PCBX, PCBY…", 
+    "Ej: OUT, IN, 3FGM, AS, 2FGA", 
+    "Ej: JAMES MIKE, PRIGIONI PABLO…", 
+    "Ej: Real Madrid, Olympiacos Piraeus, Baskonia…", 
+    "Del 0 al 99", 
+    "Del 1 al 61 (incluye prórroga)", 
+    "09:00, 08:00, etc...", 
+    "Del 0 al 134", 
+    "Del 0 al 126", 
+    'Ej: "Three Pointer", "Assist", "Def Rebound", "Turnover", "Steal", etc…'
+  )
+)
+
+kable(play_by_play_vars, caption = "Variables de euroleague_play_by_play.csv")
+```
+
+### 5. `euroleague_players.csv`
+Este dataset incluye estadísticas acumuladas de los jugadores por temporada.  
+**Dimensiones del dataset:** Estadísticas agregadas por jugador y temporada (54 variables).
+
+```{r}
+#| label: tabla-players
+#| echo: false
+
+players_vars <- tibble(
+  Nombre = c(
+    "season_player_id", "season_code", "player_id", "player", "team_id", 
+    "games_played", "games_started", "minutes", "points", 
+    "two_points_made", "two_points_attempted", "three_points_made", "three_pints_attempted", 
+    "free_throws_made", "free throws_attempted", "offensive_rebounds", "defensive_rebounds", 
+    "total_rebounds", "assists", "steals", "turnovers", "blocks_favour", "blocks_against", 
+    "fouls_committed", "fouls_received", "valuation", "plus_minus", 
+    "minutes_per_game", "points_per_game", "two_points_made_per_game", "two_points_attempted_per_game", 
+    "two_points_percentage", "three_points_made_per_game", "three_points_percentage", 
+    "free_throws_made_per_game", "free_throws_attempted_per_game", "free_throws_percentage", 
+    "offensive_rebounds_per_game", "defensive_rebounds_per_game", "total_rebounds_per_game", 
+    "assists_per_game", "steals_per_game", "turnovers_per_game", "blocks_favour_per_game", 
+    "blocks_against_per_game", "fouls_committed_per_game", "fouls_received_per_game", 
+    "valuation_per_game", "plus_minus_per_game"
+  ),
+  Tipo = c(
+    "Categórica nominal", "Categórica nominal", "Categórica nominal", "Categórica nominal", "Categórica nominal", 
+    "Numérica discreta", "Numérica discreta", "Numérica continua", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", 
+    "Numérica discreta", "Numérica discreta", "Numérica discreta", "Numérica discreta", 
+    "Numérica continua", "Numérica continua", "Numérica continua", "Numérica continua", 
+    "Numérica continua", "Numérica continua", "Numérica continua", 
+    "Numérica continua", "Numérica continua", "Numérica continua", 
+    "Numérica continua", "Numérica continua", "Numérica continua", 
+    "Numérica continua", "Numérica continua", "Numérica continua", "Numérica continua", 
+    "Numérica continua", "Numérica continua", "Numérica continua", 
+    "Numérica continua", "Numérica continua"
+  ),
+  Descripción = c(
+    "Identificador único que combina la temporada, el jugador y el equipo para registrar sus estadísticas agregadas en esa campaña específica.",
+    "Código identificativo de la temporada deportiva evaluada.",
+    "Código identificador único del jugador.",
+    "Nombre y apellidos del jugador.",
+    "Abreviatura o código del equipo en el que militó el jugador esa temporada.",
+    "Número total de partidos en los que el jugador ha participado durante esa temporada.",
+    "Número de partidos en los que el jugador formó parte del quinteto titular inicial.",
+    "Tiempo total acumulado que el jugador ha estado en pista durante la temporada.",
+    "Puntos totales anotados por el jugador a lo largo de la temporada.",
+    "Cantidad de tiros de dos puntos que el jugador ha anotado con éxito.",
+    "Cantidad total de tiros de dos puntos intentados por el jugador.",
+    "Cantidad de tiros de tres puntos (triples) anotados con éxito.",
+    "Cantidad total de tiros de tres puntos intentados por el jugador.",
+    "Cantidad de tiros libres anotados con éxito.",
+    "Cantidad total de tiros libres intentados por el jugador.",
+    "Número total de rebotes capturados en la canasta rival (en ataque).",
+    "Número total de rebotes capturados en la canasta propia (en defensa).",
+    "Suma total de los rebotes ofensivos y defensivos capturados.",
+    "Número total de asistencias repartidas por el jugador a sus compañeros.",
+    "Número total de robos de balón realizados al equipo contrario.",
+    "Número total de pérdidas de balón cometidas por el jugador.",
+    "Número de tapones o bloqueos de tiro realizados con éxito por el jugador sobre el rival.",
+    "Número de tiros del jugador que fueron taponados o bloqueados por el rival.",
+    "Número total de faltas personales cometidas por el jugador.",
+    "Número total de faltas personales recibidas (provocadas) por el jugador.",
+    "Valoración total acumulada del jugador (estadística avanzada que resume el rendimiento global sumando apartados positivos y restando los negativos).",
+    "Estadística total de +/- (diferencia en el marcador para su equipo mientras el jugador está en pista).",
+    "Promedio de minutos jugados por partido.",
+    "Promedio de puntos anotados por partido.",
+    "Promedio de tiros de dos puntos anotados por partido.",
+    "Promedio de tiros de dos puntos intentados por partido.",
+    "Porcentaje de acierto en tiros de dos puntos.",
+    "Promedio de tiros de tres puntos (triples) anotados por partido.",
+    "Porcentaje de acierto en tiros de tres puntos.",
+    "Promedio de tiros libres anotados por partido.",
+    "Promedio de tiros libres intentados por partido.",
+    "Porcentaje de acierto en tiros libres.",
+    "Promedio de rebotes ofensivos capturados por partido.",
+    "Promedio de rebotes defensivos capturados por partido.",
+    "Promedio de rebotes totales (ofensivos + defensivos) capturados por partido",
+    "Promedio de asistencias repartidas por partido.",
+    "Promedio de robos de balón realizados por partido.",
+    "Promedio de pérdidas de balón cometidas por partido.",
+    "Promedio de tapones a favor (realizados sobre el rival) por partido.",
+    "Promedio de tapones en contra (recibidos) por partido.",
+    "Promedio de faltas personales cometidas por partido.",
+    "Promedio de faltas personales recibidas (provocadas) por partido.",
+    "Promedio de valoración obtenida por partido.",
+    "Promedio estadístico de la diferencia de puntos del equipo (+/-) por cada partido jugado por el jugador."
+  ),
+  `Unidades de medida` = c(
+    "No aplica", "No aplica", "No aplica", "No aplica", "No aplica", 
+    "Partidos", "Partidos", "Minutos", "Puntos", 
+    "Tiros anotados", "Tiros intentados.", "Tiros anotados", "Tiros intentados", 
+    "Tiros anotados.", "Tiros intentados.", "Rebotes.", "Rebotes.", 
+    "Rebotes.", "Asistencias.", "Robos.", "Pérdidas.", "Tapones.", "Tapones recibidos.", 
+    "Faltas.", "Faltas.", "Puntos de valoración (créditos).", "Puntos de diferencia.", 
+    "Minutos.", "Puntos.", "Tiros anotados.", "Tiros intentados.", 
+    "Proporción", "Tiros anotados.", "Proporción", 
+    "Tiros anotados.", "Tiros intentados.", "Proporción", 
+    "Rebotes.", "Rebotes.", "Rebotes.", 
+    "Asistencias.", "Robos", "Pérdidas.", "Tapones.", 
+    "Tapones recibidos.", "Faltas.", "Faltas.", 
+    "Puntos de valoración.", "Puntos de diferencia."
+  ),
+  `Rango o valores` = c(
+    "6578 valores", "Del E2007 al E2025", "2419 valores", "2418 valores", "Ej: MAD, BAR, OLY…", 
+    "Del 0 al 44", "Del 0 al 42", "Del 0 al 1240", "", 
+    "Del 0 al 252", "Del 0 al 444", "Del 0 al 148", "Del 0 al 370", 
+    "Del 0 al 208", "Del 0 al 267.", "Del 0 al 126.", "Del 0 al 216.", 
+    "Del 0 al 289.", "Del 0 al 289.", "Del 0 al 72.", "Del 0 al 131.", "Del 0 al 88.", "Del 0 al 40", 
+    "Del 0 al 134.", "Del 0 al 274.", "Del -16 al 902.", "Del -276 al 360.", 
+    "Del 0 al 37.6.", "Del 0 al 23.1.", "Del 0 al 7.", "Del 0 al 14.5.", 
+    "Del 0 al 1 (equivale del 0% al 100%).", "Del 0 al 3.92", "Del 0 al 1.", 
+    "Del 0 al 7.86.", "Del 0 al 11.", "Del 0 al 1.", 
+    "Del 0 al 8", "Del 0 al 7.5.", "Del 0 al 11.5.", 
+    "Del 0 al 9.11", "Del 0 al 3.25.", "Del 0 al 4.7.", "Del 0 al 3", 
+    "Del 0 al", "Del 0 al 5.", "Del 0 al 10", 
+    "Del -7 al 28.", "Del -20 al 28."
+  )
+)
+
+kable(players_vars, caption = "Variables de euroleague_players.csv")
+```
+
+### 6. `euroleague_points.csv`
+Registro detallado de lanzamientos y coordenadas en pista.  
+**Dimensiones del dataset:** 755145 x 24
+
+```{r}
+#| label: tabla-points
+#| echo: false
+
+points_vars <- tibble(
+  Nombre = c(
+    "game_point_id", "game_id", "game", "round", "phase", "season_code", 
+    "number_of_play", "team_id", "player_id", "player", "action_id", 
+    "action", "points", "coord_x", "coord_y", "zone", "fastbreak", 
+    "second_chance", "points_off_turnover", "minute", "console", 
+    "points_a", "points_b", "timestamp"
+  ),
+  Tipo = c(
+    "Categórica nominal", "Categórica nominal", "Categórica nominal", "Numérica discreta", 
+    "Categórica nominal", "Categórica nominal", "Numérica discreta", "Categórica nominal", 
+    "Categórica nominal", "Categórica nominal", "Categórica nominal", "Categórica nominal", 
+    "Numérica discreta", "Numérica discreta", "Numérica discreta", 
+    "Categórica nominal", "Booleana", "Booleana", 
+    "Booleana", "Numérica discreta", "Categórica / Fecha y hora", 
+    "Numérica discreta", "Numérica discreta", "Fecha y hora"
+  ),
+  Descripción = c(
+    "Identificador único de cada jugada o evento de tiro registrado",
+    "Identificador único del partido.",
+    "Abreviatura del enfrentamiento entre los equipos.",
+    "ornada o ronda de la competición",
+    "Fase del torneo.",
+    "Código identificativo de la temporada.",
+    "Número secuencial de la jugada dentro del partido.",
+    "Abreviatura del equipo que realiza la acción.",
+    "Identificador único del jugador que realiza el tiro.",
+    "Nombre y apellidos del jugador",
+    "Código corto estadístico del tipo de tiro.",
+    "Descripción textual del resultado del tiro",
+    "Puntos obtenidos en esa acción específica.",
+    "Coordenada X espacial que indica la posición en la pista desde donde se realizó el tiro.",
+    "Coordenada Y espacial que indica la posición en la pista desde donde se realizó el tiro.",
+    "Letra que identifica la zona sectorizada de la cancha donde ocurrió la acción.",
+    "Indica si la acción de tiro se produjo durante un contraataque.",
+    "Indica si la acción es producto de una segunda oportunidad (tras rebote ofensivo).",
+    "Indica si el tiro proviene directamente tras una pérdida de balón del equipo rival",
+    "Minuto de juego en el que ocurre el tiro.",
+    "Tiempo mostrado en el cronómetro del partido (o marca temporal de registro) para esa acción.",
+    "Puntuación del equipo local/A en ese instante.",
+    "Puntuación del equipo visitante/B en ese instante.",
+    "Sello de tiempo exacto del registro del evento en el sistema."
+  ),
+  `Unidades de medida` = c(
+    "No aplica.", "No aplica.", "No aplica", "Jornadas", "No aplica.", 
+    "No aplica.", "No aplica", "No aplica", "No aplica", "No aplica.", 
+    "No aplica.", "No aplica.", "Puntos.", "Unidades espaciales del plano", 
+    "Unidades espaciales del plano.", "No aplica.", "No aplica.", "No aplica.", 
+    "No aplica.", "Minutos.", "Minutos:Segundos", "Puntos.", "Puntos.", "Fecha (AAAA-MM-DD)."
+  ),
+  `Rango o valores` = c(
+    "761.642 valores únicos", "5.079 valores únicos", "1.387 valores únicos", "Del 1 al 47.", 
+    "REGULAR SEASON, TOP 16…", "E2025, E2024, E2007, etc..", "Del 2 al 1222.", 
+    "MAD, OLY, BAS, etc..", "2.145 valores únicos", "2.144 valores únicos", 
+    "2FGM (21%), 3FGA (20%), 2FGA, etc..", "Two Pointer, Missed Two Pointer, Three Pointer, Missed Three Pointer, etc..", 
+    "0, 2, 3.", "Del -740 al 746.", "De forma discreta  -156 al 1304.", "G, I, D, C, E, B, etc.", 
+    "{0,1} o NA.", "{0,1} o NA.", "{0,1} o NA", "De forma discreta del 1 al 60.", 
+    "09:00, 08:00, 07:00, etc..", "Del 0 al 134.", "De forma discreta del 0 al 126.", 
+    "Desde 1970-01-01 hasta 2026-10-09"
+  )
+)
+
+kable(points_vars, caption = "Variables de euroleague_points.csv")
+```
+
+### 7. `euroleague_teams.csv`
+Incluye información de los equipos de Euroliga desde la temporada 2007/2008 hasta la 2025/2026.  
+**Dimensiones del dataset:** 392 x 45
+
+```{r}
+#| label: tabla-teams
+#| echo: false
+
+teams_vars <- tibble(
+  Nombre = c(
+    "season_team_id", "season_code", "team_id", "games_played", "minutes", 
+    "points", "two_points_made", "two_points_attempted", "three_points_made", 
+    "three_points_attempted", "free_throws_made", "free_throws_attempted", 
+    "offensive_rebounds", "deffensive_rebounds", "total_rebounds", "assists", 
+    "steals", "turnovers", "blocks_favour", "blocks_against", "fouls_commited", 
+    "fouls_receives", "valuation", "minutes_per_game", "points_per_game", 
+    "two_points_made_per_game", "two_points_attempted_per_game", "two_points_percentage", 
+    "three_points_made_per_game", "three_points_attempted_per_game", "three_points_percentage", 
+    "free_throws_made_per_game", "free_throws_attempted_per_game", "free_throws_percentage", 
+    "offensive_rebounds_per_game", "deffensive_rebounds_per_game", "total_rebounds_per_game", 
+    "assists_per_game", "steals_per_game", "turnovers_per_game", "blocks_favour_per_game", 
+    "blocks_against_per_game", "fouls_commited_per_game", "fouls_receives_per_game", 
+    "valuation_per_game"
+  ),
+  Tipo = c(
+    rep("Categórica nominal", 3),
+    "Numérica discreta", "Numérica continua",
+    rep("Numérica discreta", 18),
+    rep("Numérica continua", 22)
+  ),
+  Descripción = c(
+    "Identificador único del equipo y temporada",
+    "Identificador de la temporada",
+    "Identificador del equipo",
+    "Número de partidos jugados por el equipo en la temporada señalada",
+    "Número de minutos jugados por el equipo a lo largo de la temporada",
+    "Número de puntos anotados en la temporada por el equipo",
+    "Número de tiros de dos anotados por el equipo en toda la temporada",
+    "Número de tiros de dos intentados por el equipo en toda la temporada",
+    "Número de triples anotados por el equipo en toda la temporada",
+    "Número de triples intentados por el equipo en toda la temporada",
+    "Número de tiros libres anotados por el equipo en toda la temporada",
+    "Número de tiros libres intentados por el equipo en toda la temporada",
+    "Número de rebotes ofensivos capturados por el equipo en toda la temporada",
+    "Número de rebotes defensivos capturados por el equipo en toda la temporada",
+    "Número de rebotes capturados por el equipo en toda la temporada",
+    "Número de asistencias realizadas por un equipo a lo largo de una temporada",
+    "Número de robos de balón realizados por un equipo a lo largo de una temporada",
+    "Número de pérdidas de balón de un equipo a lo largo de una temporada",
+    "Número de tapones cometidos por un equipo a lo largo de la temporada",
+    "Número de tapones sufridos por un equipo a lo largo de la temporada",
+    "Número de faltas cometidas por un equipo a lo largo de una temporada",
+    "Número de faltas sufridas por un equipo a lo largo de una temporada",
+    "Valoración conjunta de todos los jugadores del equipo a lo largo de una temporada",
+    "Número de minutos jugados de media por partido por el equipo a lo largo de la temporada",
+    "Número de puntos anotados  de media por partido en la temporada por el equipo",
+    "Número de tiros de dos anotados  de media por partido por el equipo en toda la temporada",
+    "Número de tiros de dos intentados  de media por partido por el equipo en toda la temporada",
+    "Porcentaje de tiros de dos anotados por un equipo en toda la temporada",
+    "Número de triples anotados de media por partido por el equipo en toda la temporada",
+    "Número de triples intentados  de media por partido por el equipo en toda la temporada",
+    "Porcentaje de triples anotados por un equipo en toda la temporada",
+    "Número de tiros libres anotados  de media por partido por el equipo en toda la temporada",
+    "Número de tiros libres intentados  de media por partido por el equipo en toda la temporada",
+    "Porcentaje de tiros libres anotados por un equipo en toda la temporada",
+    "Número de rebotes ofensivos capturados por el equipo  de media por partido en toda la temporada",
+    "Número de rebotes defensivos capturados  de media por partido por el equipo en toda la temporada",
+    "Número de rebotes capturados  de media por partido por el equipo en toda la temporada",
+    "Número de asistencias realizadas  de media por partido por un equipo a lo largo de una temporada",
+    "Número de robos de balón realizados  de media por partido por un equipo a lo largo de una temporada",
+    "Número de pérdidas de balón  de media por partido de un equipo a lo largo de una temporada",
+    "Número de tapones cometidos  de media por partido por un equipo a lo largo de la temporada",
+    "Número de tapones sufridos  de media por partido por un equipo a lo largo de la temporada",
+    "Número de faltas cometidas  de media por partido por un equipo a lo largo de una temporada",
+    "Número de faltas sufridas  de media por partido por un equipo a lo largo de una temporada",
+    "Valoración conjunta de todos los jugadores  de media por partido del equipo a lo largo de una temporada"
+  ),
+  `Unidades de medida` = c(
+    rep("No aplica", 4),
+    "Minutos",
+    rep("No aplica", 19),
+    "Minutos",
+    rep("No aplica", 20)
+  ),
+  `Rango o valores` = c(
+    "Ej: E2007_ARI",
+    "De E2007 a E2025",
+    "Ej: ARI",
+    "De forma discreta de 10 a 44",
+    "[399.9,1780]",
+    "De forma discreta de 589 a 3977",
+    "De forma discreta de 149 a 1012",
+    "De forma discreta de 313 a 1798",
+    "De forma discreta de 41 a 505",
+    "De forma discreta de 142 a 1399",
+    "De forma discreta de 106 a 1002",
+    "De forma discreta de 313 a 1798",
+    "De forma discreta de 71 a 571",
+    "De forma discreta de 172 a 1133",
+    "De forma discreta de 248 a 1663",
+    "De forma discreta de 96 a 924",
+    "De forma discreta de 34 a 342",
+    "De forma discreta de 100 a 585",
+    "De forma discreta de 7 a 170",
+    "De forma discreta de 16 a 132",
+    "De forma discreta de 173 a 981",
+    "De forma discreta de 160 a 959",
+    "De forma discreta de 498 a 4726",
+    "[39.65,41.60]",
+    "[58.90,90.97]",
+    "[14.40,24.45]",
+    "[30.07,47.30]",
+    "[0.422,0.602]",
+    "[4.1,12.560]",
+    "[13.44,32.89]",
+    "[0.2390,0.4280]",
+    "[7.20,19.11]",
+    "[10.60,26.77]",
+    "[0.6060,0.86]",
+    "[5.6,15.1]",
+    "[17.2,27.31]",
+    "[24.8,34.58]",
+    "[8.64,21.47]",
+    "[3.4,14.25]",
+    "[9.53,18.31]",
+    "[0.7,4.41]",
+    "[1.360,4.5 ]",
+    "[16.64,26.58]",
+    "[16,24.09]",
+    "[49.8,109.41]"
+  )
+)
+
+kable(teams_vars, caption = "Variables de euroleague_teams.csv")
+``` 
